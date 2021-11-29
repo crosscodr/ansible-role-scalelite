@@ -1,0 +1,14 @@
+---
+servers:
+{% if scalelite_bbb_servers | length > 0 %}
+{{ scalelite_bbb_servers | to_nice_yaml(indent=2) | indent(2, indentfirst=true) }}
+{% else %}
+{#% for server in groups.bbb_servers | map('extract', hostvars, ['ansible_host']) | list %#}
+{% for server in serverlist %}
+  {{ server.item }}:
+    secret: {{ server.stdout }} # required
+#    url: <string>              # default: "https://<server-id>/bigbluebutton/api"
+#    enabled: <bool>            # default: true
+#    load_multiplier: <float>   # default: 1.0, must be greater than 0
+{% endfor %}
+{% endif %}

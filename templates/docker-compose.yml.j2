@@ -1,0 +1,153 @@
+version: '3'
+
+networks:
+  scalelite:
+    driver: bridge
+
+services:
+{% if scalelite_db_docker %}
+  database:
+    container_name: scalelite-postgresql
+    image: postgres:{{ scalelite_postgres_version_tag }}
+    networks: [scalelite]
+    volumes:
+      - {{ scalelite_postgres_data_dir }}:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: '{{ scalelite_db_user }}'
+      POSTGRES_PASSWORD: '{{ scalelite_db_pass }}'
+      TZ: "Europe/Berlin"
+      PGTZ: "Europe/Berlin"
+    restart: unless-stopped
+{% endif %}
+
+{% if scalelite_redis_docker %}
+  redis:
+    container_name: scalelite-redis
+    image: redis:{{ scalelite_redis_version_tag }}
+    networks: [scalelite]
+    volumes:
+      - {{ scalelite_redis_conf_dir }}:/usr/local/etc/redis
+      - {{ scalelite_redis_data_dir }}:/data
+    command:
+      - 'redis-server'
+      - '--appendonly yes'
+      - '--requirepass {{ scalelite_redis_pass }}'
+{# - '/usr/local/etc/redis/redis.conf' #}
+    environment:
+      TZ: "Europe/Berlin"
+    restart: unless-stopped
+{% endif %}
+
+  scalelite_api:
+    container_name: scalelite-api
+    image: blindsidenetwks/scalelite:{{ scalelite_version_tag }}-api
+    networks: [scalelite]
+{% if scalelite_db_docker or scalelite_redis_docker %}
+    depends_on:
+{% if scalelite_db_docker %}
+      - database
+{% endif %}
+{% if scalelite_redis_docker %}
+      - redis
+{% endif %}
+{% endif %}
+    volumes:
+      - type: bind
+        source: ./bbb-servers.yml
+        target: /srv/scalelite/bbb-servers.yml
+        read_only: 'true'
+{% if scalelite_enable_recordings %}
+      - "{{ scalelite_recordings_base_dir }}/var/bigbluebutton:/var/bigbluebutton"
+{% endif %}
+    environment: &ENVS
+      URL_HOST: "{{ ansible_host }}"
+      SECRET_KEY_BASE: "{{ scalelite_secret_key_base }}"
+      LOADBALANCER_SECRETS: "{{ scalelite_loadbalancer_secrets.values() | list | join(':') }}"
+      DATABASE_URL: "postgresql://{{ scalelite_db_user }}:{{ scalelite_db_pass }}@{{ 'database' if scalelite_db_docker else scalelite_db_host }}:5432/{{ scalelite_db_name }}"
+      REDIS_URL: redis://:{{ scalelite_redis_pass }}@{{ 'redis' if scalelite_redis_docker else scalelite_redis_host }}
+      RAILS_LOG_TO_STDOUT: 'true'
+      NGINX_BEHIND_PROXY: "{{ scalelite_behind_proxy }}"
+      TZ: "Europe/Berlin"
+      CONNECT_TIMEOUT: 3
+      #MAX_MEETING_DURATION
+      # TODO set default depending on hardware specs
+      WEB_CONCURRENCY: 8
+      LOAD_MIN_USER_COUNT: {{ scalelite_load_min_user_count | int }}
+      LOAD_JOIN_BUFFER_TIME: {{ scalelite_load_join_buffer_time | int }}
+      POLLER_WAIT_TIMEOUT: 10
+      SERVER_ID_IS_HOSTNAME: "{{ scalelite_server_id_is_hostname }}"
+      # since 1.1.7
+      GET_RECORDINGS_API_FILTERED: "false"
+      RECORDING_DISABLED: "{{ 'false' if scalelite_enable_recordings else 'true' }}"
+      RECORDING_IMPORT_POLL: "{{ 'true' if scalelite_enable_recordings else 'false' }}"
+
+    restart: unless-stopped
+
+  scalelite_nginx:
+    container_name: scalelite-nginx
+    image: blindsidenetwks/scalelite:{{ scalelite_version_tag }}-nginx
+    networks: [scalelite]
+    depends_on:
+      - scalelite_api
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - "{{ scalelite_recordings_base_dir }}/var/bigbluebutton/published:/var/bigbluebutton/published:ro"
+      - "{{ scalelite_ssl_pubkey }}:/etc/nginx/ssl/live/{{ ansible_host }}/fullchain.pem:ro"
+      - "{{ scalelite_ssl_privkey }}:/etc/nginx/ssl/live/{{ ansible_host }}/privkey.pem:ro"
+{# - .nginx-locations/monitoring.conf:/etc/nginx/conf.d/scalelite/monitoring.conf #}
+    environment:
+      <<: *ENVS
+      NGINX_SSL: 'true'
+    restart: unless-stopped
+
+  scalelite_poller:
+    container_name: scalelite-poller
+    image: blindsidenetwks/scalelite:{{ scalelite_version_tag }}-poller
+    networks: [scalelite]
+    depends_on:
+      - scalelite_api
+{% if scalelite_db_docker %}
+      - database
+{% endif %}
+{% if scalelite_redis_docker %}
+      - redis
+{% endif %}
+    environment: *ENVS
+    restart: unless-stopped
+
+{% if scalelite_enable_recordings %}
+{#   scalelite-recordings:
+    image: ${SCALELITE_RECORDINGS_DOCKER_IMAGE:-bigbluebutton/bbb-playback-proxy:bionic-230-alpine}
+    container_name: scalelite-recordings
+    restart: unless-stopped
+    volumes:
+      - ./log/recordings/:/var/log/nginx
+      - ${SCALELITE_RECORDING_DIR-/mnt/scalelite-recordings/var/bigbluebutton}/published:/var/bigbluebutton/published
+    depends_on:
+{% if scalelite_db_docker %}
+      - database
+{% endif %}
+{% if scalelite_redis_docker %}
+      - redis
+{% endif %}
+      - scalelite_api #}
+
+  scalelite_recording_importer:
+    container_name: scalelite-recording-importer
+    image: blindsidenetwks/scalelite:{{ scalelite_version_tag }}-recording-importer
+    networks: [scalelite]
+    depends_on:
+      - scalelite_api
+{% if scalelite_db_docker %}
+      - database
+{% endif %}
+{% if scalelite_redis_docker %}
+      - redis
+{% endif %}
+    volumes:
+      - "{{ scalelite_recordings_base_dir }}/var/bigbluebutton:/var/bigbluebutton"
+    environment: *ENVS
+    restart: unless-stopped
+{% endif %}

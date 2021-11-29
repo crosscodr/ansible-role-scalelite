@@ -1,0 +1,76 @@
+---
+# This is untested!
+
+- name: Create scalelite group
+  loop: "{{ groups.bbb_servers }}"
+  delegate_to: "{{ item }}"
+  group:
+    name: scalelite-spool
+    gid: 2000
+  when: scalelite_enable_recordings | bool
+
+- name: Add bigbluebutton user to group
+  loop: "{{ groups.bbb_servers }}"
+  delegate_to: "{{ item }}"
+  user:
+    name: bigbluebutton
+    groups: scalelite-spool
+    append: yes
+  when: scalelite_enable_recordings | bool
+
+- name: Create spool directory
+  file:
+    state: directory
+    path: "{{ scalelite_recordings_basedir }}/var/bigbluebutton/spool"
+    owner: 1000
+    group: 2000
+    mode: '0775'
+    recurse: yes
+  when: scalelite_enable_recordings | bool
+
+- name: Create working directory
+  file:
+    state: directory
+    path: "{{ scalelite_recordings_basedir }}/var/bigbluebutton/recording/scalelite"
+    owner: 1000
+    group: 2000
+    mode: '0775'
+    recurse: yes
+  when: scalelite_enable_recordings | bool
+
+- name: Create published directory
+  file:
+    state: directory
+    path: "{{ scalelite_recordings_basedir }}/var/bigbluebutton/published"
+    owner: 1000
+    group: 1000
+    mode: '0775'
+    recurse: yes
+  when: scalelite_enable_recordings | bool
+
+- name: Create unpublished directory
+  file:
+    state: directory
+    path: "{{ scalelite_recordings_basedir }}/var/bigbluebutton/unpublished"
+    owner: 1000
+    group: 1000
+    mode: '0775'
+    recurse: yes
+  when: scalelite_enable_recordings | bool
+
+# https://github.com/blindsidenetworks/scalelite/blob/master/bigbluebutton/README.md
+- name: Deploy scalelite scalelite_post_publish.rb script
+  loop: "{{ groups.bbb_servers }}"
+  delegate_to: "{{ item }}"
+  copy:
+    src: scalelite_post_publish.rb
+    dest: /usr/local/bigbluebutton/core/scripts/post_publish
+  when: scalelite_enable_recordings | bool
+
+- name: Deploy scalelite scalelite.yml file
+  loop: "{{ groups.bbb_servers }}"
+  delegate_to: "{{ item }}"
+  template:
+    src: scalelite.yml.j2
+    dest: /usr/local/bigbluebutton/core/scripts/scalelite.yml
+  when: scalelite_enable_recordings | bool

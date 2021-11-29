@@ -1,0 +1,51 @@
+---
+# Choose v1.3 or above
+scalelite_version_tag: "v1.3"
+
+
+# SECRET_KEY_BASE: A secret used internally by Rails. Should be unique per deployment.
+# Generate with bundle exec rake secret or openssl rand -hex 64.
+scalelite_secret_key_base: FIXIT
+# dictionary with keys <servicename> and values <openssl rand -hex 64>
+scalelite_loadbalancer_secrets: FIXIT
+
+# scalelite_mon_htpasswd_pass
+# scalelite_mon_htpasswd_user
+
+scalelite_install_dir: '/opt/scalelite'
+
+scalelite_db_docker: true
+scalelite_postgres_version_tag: 13-alpine
+scalelite_postgres_data_dir: /var/lib/postgresql/data
+# only if scalelite_db_docker is false
+#scalelite_db_host:
+scalelite_db_user: scalelite
+scalelite_db_pass: scalelite
+scalelite_db_name: scalelite
+scalelite_db_init: false
+
+scalelite_redis_docker: true
+scalelite_redis_version_tag: 6.2-alpine
+scalelite_redis_data_dir: '/var/lib/redis'
+# scalelite_redis_conf_dir: '/opt/scalelite/redis/config'
+#scalelite_redis_pass
+# only if scalelite_db_redis is false
+#scalelite_redis_host:
+
+scalelite_load_min_user_count: 15
+scalelite_load_join_buffer_time: 7
+scalelite_server_id_is_hostname: true
+
+scalelite_enable_recordings: "{{ bbb_enable_recordings | default(false) }}"
+scalelite_recordings_base_dir: /mnt/scalelite-recordings
+
+
+# sync feature since scalelite 1.3
+scalelite_bbb_servers: {}
+  # <server-id>:                 # must be unique, should be a hostname
+  #   secret: <string>         # required
+  #   url: <string>            # default: "https://<server-id>/bigbluebutton/api"
+  #   enabled: <bool>          # default: true
+  #   load_multiplier: <float> # default: 1.0, must be greater than 0
+# choose one of keep, cordon, force
+scalelite_sync_method: 'keep'

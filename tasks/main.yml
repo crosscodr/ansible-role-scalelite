@@ -1,0 +1,75 @@
+---
+- name: Check for required variables
+  loop:
+    - scalelite_secret_key_base
+    - scalelite_loadbalancer_secrets
+  when: item not in vars
+  fail:
+    msg: "missing required variable: {{ item }}"
+
+- name: import recording tasks
+  import_tasks: recording.yml
+  when: scalelite_enable_recordings | bool
+  tags: recording
+
+- name: create installation directories
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "{{ scalelite_install_dir }}"
+#    - "{{ scalelite_redis_conf_dir }}"
+  tags: scalelite_docker_compose
+
+- name: Retrieve bigbluebutton secret keys
+  shell: 'bbb-conf --secret | grep -o "Secret:.*$" | grep -o "[^ ]*$"'
+  loop: "{{ groups.bbb_servers | map('extract', hostvars, ['ansible_host']) | list }}"
+  register: secret_keys
+  delegate_to: "{{ item }}"
+  when: scalelite_bbb_servers | length == 0
+
+- name: deploy bbb-servers.yml
+  template:
+    src: bbb-servers.yml.j2
+    dest: "{{ scalelite_install_dir }}/bbb-servers.yml"
+  vars:
+    serverlist: "{{ secret_keys.results | default({}) }}"
+  failed_when: secret_keys.results | map(attribute='stdout') | join ('') == ''
+  when:
+    - scalelite_bbb_servers | length == 0
+    - not ansible_check_mode
+
+# - name: deploy redis config
+#   template:
+#     src: redis.conf.j2
+#     dest: "{{ scalelite_redis_conf_dir }}/redis.conf"
+#   tags: scalelite-redis
+
+- name: Generate docker-compose.yml file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ scalelite_install_dir }}/docker-compose.yml"
+    mode: 640
+    owner: root
+    group: root
+
+- name: Launch docker-compose
+  community.docker.docker_compose:
+    pull: true
+    project_src: "{{ scalelite_install_dir }}"
+  when: not ansible_check_mode
+
+- name: Initialize Scalelite database
+  # https://stackoverflow.com/questions/10301794/difference-between-rake-dbmigrate-dbreset-and-dbschemaload
+  command: >-
+    docker exec -it scalelite-api bin/rake
+    {{ 'db:create' if scalelite_db_docker else '' }} db:schema:load db:seed
+    # db:setup?
+  when: scalelite_db_init | bool
+
+- name: sync bbb-servers with scalelite
+  community.docker.docker_container_exec:
+    container: scalelite-api
+    command: "./bin/rake servers:sync[/srv/scalelite/bbb-servers.yml,{{ scalelite_sync_method }}{{ ',dryrun' if ansible_check_mode else '' }}]"
+  check_mode: false
+  tags: scalelite-sync-servers
