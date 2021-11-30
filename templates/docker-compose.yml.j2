@@ -13,6 +13,7 @@ services:
     volumes:
       - {{ scalelite_postgres_data_dir }}:/var/lib/postgresql/data
     environment:
+      POSTGRES_DB: '{{ scalelite_db_name }}'
       POSTGRES_USER: '{{ scalelite_db_user }}'
       POSTGRES_PASSWORD: '{{ scalelite_db_pass }}'
       TZ: "Europe/Berlin"
@@ -26,7 +27,7 @@ services:
     image: redis:{{ scalelite_redis_version_tag }}
     networks: [scalelite]
     volumes:
-      - {{ scalelite_redis_conf_dir }}:/usr/local/etc/redis
+{# - {{ scalelite_redis_conf_dir }}:/usr/local/etc/redis #}
       - {{ scalelite_redis_data_dir }}:/data
     command:
       - 'redis-server'
@@ -66,7 +67,6 @@ services:
       DATABASE_URL: "postgresql://{{ scalelite_db_user }}:{{ scalelite_db_pass }}@{{ 'database' if scalelite_db_docker else scalelite_db_host }}:5432/{{ scalelite_db_name }}"
       REDIS_URL: redis://:{{ scalelite_redis_pass }}@{{ 'redis' if scalelite_redis_docker else scalelite_redis_host }}
       RAILS_LOG_TO_STDOUT: 'true'
-      NGINX_BEHIND_PROXY: "{{ scalelite_behind_proxy }}"
       TZ: "Europe/Berlin"
       CONNECT_TIMEOUT: 3
       #MAX_MEETING_DURATION
@@ -74,8 +74,15 @@ services:
       WEB_CONCURRENCY: 8
       LOAD_MIN_USER_COUNT: {{ scalelite_load_min_user_count | int }}
       LOAD_JOIN_BUFFER_TIME: {{ scalelite_load_join_buffer_time | int }}
+      POLL_INTERVAL: {{ scalelite_poll_interval | int }}
       POLLER_WAIT_TIMEOUT: 10
       SERVER_ID_IS_HOSTNAME: "{{ scalelite_server_id_is_hostname }}"
+{% if scalelite_create_exclude_params | length > 0 %}
+      CREATE_EXCLUDE_PARAMS: "{{ scalelite_create_exclude_params }}"
+{% endif %}
+{% if scalelite_join_exclude_params | length > 0 %}
+      JOIN_EXCLUDE_PARAMS: "{{ scalelite_join_exclude_params }}"
+{% endif %}
       # since 1.1.7
       GET_RECORDINGS_API_FILTERED: "false"
       RECORDING_DISABLED: "{{ 'false' if scalelite_enable_recordings else 'true' }}"
@@ -96,10 +103,11 @@ services:
       - "{{ scalelite_recordings_base_dir }}/var/bigbluebutton/published:/var/bigbluebutton/published:ro"
       - "{{ scalelite_ssl_pubkey }}:/etc/nginx/ssl/live/{{ ansible_host }}/fullchain.pem:ro"
       - "{{ scalelite_ssl_privkey }}:/etc/nginx/ssl/live/{{ ansible_host }}/privkey.pem:ro"
-{# - .nginx-locations/monitoring.conf:/etc/nginx/conf.d/scalelite/monitoring.conf #}
+{# - .nginx-locations/monitoring.conf:/etc/nginx/http.d/scalelite/monitoring.conf #}
     environment:
       <<: *ENVS
       NGINX_SSL: 'true'
+      NGINX_BEHIND_PROXY: "{{ scalelite_behind_proxy }}"
     restart: unless-stopped
 
   scalelite_poller:

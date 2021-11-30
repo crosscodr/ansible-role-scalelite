@@ -33,8 +33,14 @@ scalelite_redis_data_dir: '/var/lib/redis'
 #scalelite_redis_host:
 
 scalelite_load_min_user_count: 15
+# The time(in minutes) until the LOAD_MIN_USER_COUNT will be used for calculating server load. Defaults to 15.
 scalelite_load_join_buffer_time: 7
 scalelite_server_id_is_hostname: true
+scalelite_poll_interval: 60
+# List of BBB server attributes that should not be modified by create API call. Should be in the format 'param1,param2,param3'.
+scalelite_create_exclude_params: ''
+# List of BBB server attributes that should not be modified by join API call. Should be in the format 'param1,param2,param3'.
+scalelite_join_exclude_params: ''
 
 scalelite_enable_recordings: "{{ bbb_enable_recordings | default(false) }}"
 scalelite_recordings_base_dir: /mnt/scalelite-recordings
