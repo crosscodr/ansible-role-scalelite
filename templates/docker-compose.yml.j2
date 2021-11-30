@@ -39,6 +39,14 @@ services:
     restart: unless-stopped
 {% endif %}
 
+{# Set WEB_CONCURRENCY between 4 and 20 #}
+{% set _web_concurrency =  ansible_processor_nproc * 2 %}
+{% if _web_concurrency < 4 %}
+{% set _web_concurrency = 4 %}
+{% elif _web_concurrency > 20 %}
+{% set _web_concurrency = 20 %}
+{% endif %}
+
   scalelite_api:
     container_name: scalelite-api
     image: blindsidenetwks/scalelite:{{ scalelite_version_tag }}-api
@@ -70,8 +78,7 @@ services:
       TZ: "Europe/Berlin"
       CONNECT_TIMEOUT: 3
       #MAX_MEETING_DURATION
-      # TODO set default depending on hardware specs
-      WEB_CONCURRENCY: 8
+      WEB_CONCURRENCY: {{ _web_concurrency }}
       LOAD_MIN_USER_COUNT: {{ scalelite_load_min_user_count | int }}
       LOAD_JOIN_BUFFER_TIME: {{ scalelite_load_join_buffer_time | int }}
       POLL_INTERVAL: {{ scalelite_poll_interval | int }}
