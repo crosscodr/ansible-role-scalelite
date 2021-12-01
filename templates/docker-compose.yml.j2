@@ -90,11 +90,23 @@ services:
 {% if scalelite_join_exclude_params | length > 0 %}
       JOIN_EXCLUDE_PARAMS: "{{ scalelite_join_exclude_params }}"
 {% endif %}
-      # since 1.1.7
-      GET_RECORDINGS_API_FILTERED: "false"
       RECORDING_DISABLED: "{{ 'false' if scalelite_enable_recordings else 'true' }}"
       RECORDING_IMPORT_POLL: "{{ 'true' if scalelite_enable_recordings else 'false' }}"
-
+{% if scalelite_enable_recordings | bool %}
+{% if scalelite_recording_playback_formats is defined %}
+      RECORDING_PLAYBACK_FORMATS: {{ scalelite_recording_playback_formats }}
+{% endif %}
+{% if scalelite_protected_recordings_enabled is defined %}
+      PROTECTED_RECORDINGS_ENABLED: {{ scalelite_protected_recordings_enabled }}
+{% endif %}
+{% if scalelite_protected_recordings_token_timeout is defined %}
+      PROTECTED_RECORDINGS_TOKEN_TIMEOUT: {{ scalelite_protected_recordings_token_timeout }}
+{% endif %}
+{% if scalelite_protected_recordings_timeout is defined %}
+      PROTECTED_RECORDINGS_TIMEOUT: {{ scalelite_protected_recordings_timeout }}
+{% endif %}
+      #GET_RECORDINGS_API_FILTERED: "false"
+{% endif %}
     restart: unless-stopped
 
   scalelite_nginx:
@@ -137,17 +149,18 @@ services:
     image: ${SCALELITE_RECORDINGS_DOCKER_IMAGE:-bigbluebutton/bbb-playback-proxy:bionic-230-alpine}
     container_name: scalelite-recordings
     restart: unless-stopped
+    environment: *ENVS
     volumes:
       - ./log/recordings/:/var/log/nginx
       - ${SCALELITE_RECORDING_DIR-/mnt/scalelite-recordings/var/bigbluebutton}/published:/var/bigbluebutton/published
     depends_on:
+      - scalelite_api
 {% if scalelite_db_docker %}
       - database
 {% endif %}
 {% if scalelite_redis_docker %}
       - redis
-{% endif %}
-      - scalelite_api #}
+{% endif %} #}
 
   scalelite_recording_importer:
     container_name: scalelite-recording-importer
