@@ -31,8 +31,9 @@ services:
       - {{ scalelite_redis_data_dir }}:/data
     command:
       - 'redis-server'
-      - '--appendonly yes'
       - '--requirepass {{ scalelite_redis_pass }}'
+      - '--appendonly yes'
+      - '--auto-aof-rewrite-min-size 32mb'
 {# - '/usr/local/etc/redis/redis.conf' #}
     environment:
       TZ: "Europe/Berlin"
