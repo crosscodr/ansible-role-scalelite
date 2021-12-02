@@ -32,6 +32,9 @@
   template:
     src: bbb-servers.yml.j2
     dest: "{{ scalelite_install_dir }}/bbb-servers.yml"
+    mode: '640'
+    owner: root
+    group: root
   vars:
     serverlist: "{{ secret_keys.results | default({}) }}"
   failed_when: secret_keys.results | map(attribute='stdout') | join ('') == ''
@@ -49,7 +52,7 @@
   template:
     src: docker-compose.yml.j2
     dest: "{{ scalelite_install_dir }}/docker-compose.yml"
-    mode: 640
+    mode: '640'
     owner: root
     group: root
 
