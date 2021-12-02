@@ -63,8 +63,10 @@
   when: not ansible_check_mode
 
 - name: sync bbb-servers with scalelite
-  community.docker.docker_container_exec:
-    container: scalelite-api
-    command: "./bin/rake servers:sync[/srv/scalelite/bbb-servers.yml,{{ scalelite_sync_method }}{{ ',dryrun' if ansible_check_mode else '' }}]"
-  check_mode: false
+  become: true
+  ansible.builtin.shell: >-
+    docker exec -i scalelite-api
+    ./bin/rake servers:sync[-,{{ scalelite_sync_method }}] < bbb-servers.yml
+  args:
+    chdir: "{{ scalelite_install_dir }}"
   tags: scalelite-sync-servers

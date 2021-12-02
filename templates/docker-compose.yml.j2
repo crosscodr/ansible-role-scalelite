@@ -61,12 +61,8 @@ services:
       - redis
 {% endif %}
 {% endif %}
-    volumes:
-      - type: bind
-        source: ./bbb-servers.yml
-        target: /srv/scalelite/bbb-servers.yml
-        read_only: 'true'
 {% if scalelite_enable_recordings %}
+    volumes:
       - "{{ scalelite_recordings_base_dir }}/var/bigbluebutton:/var/bigbluebutton"
 {% endif %}
     environment: &ENVS
