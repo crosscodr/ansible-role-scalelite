@@ -37,10 +37,10 @@
     group: root
   vars:
     serverlist: "{{ secret_keys.results | default({}) }}"
-  failed_when: secret_keys.results | map(attribute='stdout') | join ('') == ''
-  when:
-    - scalelite_bbb_servers | length == 0
-    - not ansible_check_mode
+  failed_when:
+    - (scalelite_bbb_servers | length == 0 and
+      secret_keys.results | map(attribute='stdout') | join ('') == '' and
+      not ansible_check_mode)
 
 # - name: deploy redis config
 #   template:
