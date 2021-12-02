@@ -62,14 +62,6 @@
     project_src: "{{ scalelite_install_dir }}"
   when: not ansible_check_mode
 
-- name: Initialize Scalelite database
-  # https://stackoverflow.com/questions/10301794/difference-between-rake-dbmigrate-dbreset-and-dbschemaload
-  command: >-
-    docker exec -it scalelite-api bin/rake
-    {{ 'db:create' if scalelite_db_docker else '' }} db:schema:load db:seed
-    # db:setup?
-  when: scalelite_db_init | bool
-
 - name: sync bbb-servers with scalelite
   community.docker.docker_container_exec:
     container: scalelite-api
