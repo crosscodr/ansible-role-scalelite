@@ -1,0 +1,33 @@
+---
+- name: install prometheus node-exporter with cloudalchemy-role
+  import_role:
+    name: cloudalchemy.node_exporter
+  tags: node_exporter
+
+# - name: install htpasswd dependencies
+#   apt:
+#     pkg: "python{{ python_major_version | default('3') }}-passlib"
+#     state: present
+
+# - name: create htpasswd file
+#   htpasswd:
+#     path: "/etc/nginx/conf.d/.htpasswd"
+#     name: "{{ scalelite_mon_htpasswd_user }}"
+#     password: "{{ scalelite_mon_htpasswd_pass }}"
+#     owner: "{{ httpd_user }}"
+#     group: root
+#     mode: '400'
+#   no_log: true
+
+- name: create snippets/locations directory
+  file:
+    name: "{{ scalelite_install_dir }}/nginx-locations"
+    state: directory
+
+- name: monitoring location
+  template:
+    src: monitoring.conf.j2
+    dest: "{{ scalelite_install_dir }}/nginx-locations/monitoring.conf"
+    owner: root
+    group: root
+    mode: '644'

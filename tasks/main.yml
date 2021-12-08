@@ -12,14 +12,10 @@
   when: scalelite_enable_recordings | bool
   tags: recording
 
-- name: create installation directories
+- name: create installation directory
   file:
-    path: "{{ item }}"
+    path: "{{ scalelite_install_dir }}"
     state: directory
-  loop:
-    - "{{ scalelite_install_dir }}"
-#    - "{{ scalelite_redis_conf_dir }}"
-  tags: scalelite_docker_compose
 
 - name: Retrieve bigbluebutton secret keys
   shell: 'bbb-conf --secret | grep -o "Secret:.*$" | grep -o "[^ ]*$"'
@@ -41,12 +37,6 @@
     - (scalelite_bbb_servers | length == 0 and
       secret_keys.results | map(attribute='stdout') | join ('') == '' and
       not ansible_check_mode)
-
-# - name: deploy redis config
-#   template:
-#     src: redis.conf.j2
-#     dest: "{{ scalelite_redis_conf_dir }}/redis.conf"
-#   tags: scalelite-redis
 
 - name: Generate docker-compose.yml file
   template:
